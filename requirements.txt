@@ -1,0 +1,4 @@
+viktor==14.1.0
+plotly
+numpy
+control
