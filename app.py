@@ -62,7 +62,7 @@ def calc_margins(params):
 class Parametrization(ViktorParametrization):
     welcome = Text("""## Welcome to Simone's Control Application!
 
-The application uses the Python control library to allow you to define your plant transfer function, tune the PID, see the system response, gain margin, phase margin and delay margin of the close loop system. The PID transfer function is assumed to be:
+The application uses the Python control library to allow you to define your plant transfer function, setpoint, time delay, tune the PID, see the system response, gain margin, phase margin and delay margin of the close loop system. The PID transfer function is assumed to be:
 
 $$
 C(s) = k_p + \\frac{k_i}{s} + \\frac{k_d s}{\\tau s+1}
