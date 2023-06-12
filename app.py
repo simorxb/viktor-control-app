@@ -25,8 +25,13 @@ def calc_margins(params):
 
     s = ct.TransferFunction.s
 
+    # Time delay
+    delay_time = params.delay_time
+    num, den = ct.pade(delay_time, n=10)  # 10th-order Pade approximation
+    TF_delay = ct.TransferFunction(num, den)
+
     # System transfer function
-    P = eval(params.tf)
+    P = TF_delay*eval(params.tf)
 
     # PID parameters
     kp = params.kp
@@ -65,18 +70,23 @@ $$
 
 If you are interested in control engineering follow me on Linkedin [Simone Bertoni](https://www.linkedin.com/in/simone-bertoni-control-eng) or have a look at my course [PID Control - Things I Wish I Knew When I graduated](https://simonebertoni.thinkific.com).""")
     
-    info1 = Text("### PID Configuration")
+    info1 = Text("### Plant Configuration")
+    tf = TextField('Plant transfer function', default='1/((s+0.1)*(s+0.3)*(s+3))')
+    delay_time = NumberField("Time Delay", default=0, step=0.1, suffix="s", min=0)
+    new_line1 = LineBreak()
+    
+    info2 = Text("### Simulation Configuration")
+    setpoint = NumberField("Setpoint", default=1, step=0.1, min=0)
+    end_time = NumberField("End time", default=20, step=0.1, suffix="s", min=0.1)
+    new_line2 = LineBreak()
+    
+    info3 = Text("### PID Configuration")
     kp = NumberField("Proportional gain - $k_p$", default=0.5, step=0.1, min=0)
     ki = NumberField("Integral gain - $k_i$", default=0, step=0.1, min=0)
     kd = NumberField("Derivative gain - $k_d$", default=0, step=0.1, min=0)
     tau = NumberField("Derivative time constant - $\\tau$", default=1, step=0.1, suffix="s", min=0)
-    new_line1 = LineBreak()
-    info2 = Text("### Simulation Configuration")
-    end_time = NumberField("End time", default=20, step=0.1, suffix="s", min=0.1)
-    new_line2 = LineBreak()
-    info3 = Text("### Plant Configuration")
-    tf = TextField('Plant transfer function', default='1/((s+0.1)*(s+0.3)*(s+3))')
-    new_line5 = LineBreak()
+    new_line3 = LineBreak()
+    
     info4 = Text("### Margins")
     gm = OutputField('Gain margin', value=calc_gain_margin, suffix='dB')
     pm = OutputField('Phase margin', value=calc_phase_margin, suffix='Deg')
@@ -93,9 +103,6 @@ class Controller(ViktorController):
         
         s = ct.TransferFunction.s
 
-        # System transfer function
-        P = eval(params.tf)
-
         # PID parameters
         kp = params.kp
         ki = params.ki
@@ -105,17 +112,31 @@ class Controller(ViktorController):
         # End time
         end_time = params.end_time
 
+        # Setpoint
+        stp = params.setpoint
+
+        # Time delay
+        delay_time = params.delay_time
+        num, den = ct.pade(delay_time, n=10)  # 10th-order Pade approximation
+        TF_delay = ct.TransferFunction(num, den)
+
+        # System transfer function
+        P = TF_delay*eval(params.tf)
+
         # PID transfer function
         C = kp + ki/s + kd*s/(tau*s+1)
 
         # Close-loop transfer function
-        G_P = ct.feedback(C*P, 1)
+        G_P = stp*ct.feedback(C*P, 1)
 
         # Transfer function from setpoint to controller output
-        G_P_u = C/(1+C*P)
+        G_P_u = stp*C/(1+C*P)
 
         # Step response
         t, y = ct.step_response(G_P, T=end_time)
+
+        # Setpoint for plot
+        y_stp = stp*np.ones(len(y))
 
         # Step response - controller output
         t_u, y_u = ct.step_response(G_P_u, T=end_time)
@@ -125,6 +146,7 @@ class Controller(ViktorController):
 
         # Add plots to the subplot grid
         fig.add_trace(go.Scatter(x=t, y=y, name="System Response"), row=1, col=1)
+        fig.add_trace(go.Scatter(x=t, y=y_stp, name="Setpoint", line=dict(dash='dash')), row=1, col=1)
         fig.add_trace(go.Scatter(x=t_u, y=y_u, name="Controller Output"), row=2, col=1)
         fig.update_xaxes(title_text="Time (s)", row=1, col=1)
         fig.update_yaxes(title_text="System Step Response", row=1, col=1)
